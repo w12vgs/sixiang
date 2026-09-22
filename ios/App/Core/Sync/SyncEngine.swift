@@ -36,7 +36,6 @@ final class SyncEngine {
 
     nonisolated init(container: ModelContainer) {
         self.container = container
-        self.lastSyncedAt = UserDefaults.standard.object(forKey: "lastSyncAt") as? Date
     }
 
     // MARK: - 触发
@@ -55,6 +54,10 @@ final class SyncEngine {
         guard !inFlight else { return }
         inFlight = true
         defer { inFlight = false }
+        // 懒加载上次同步时间（init 为 nonisolated，不能触碰 MainActor 隔离属性）
+        if lastSyncedAt == nil {
+            lastSyncedAt = UserDefaults.standard.object(forKey: "lastSyncAt") as? Date
+        }
         state = .syncing
         do {
             try await pull()

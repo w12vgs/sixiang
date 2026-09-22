@@ -37,11 +37,27 @@ struct TokenPair: Decodable {
 
 // MARK: - 标签
 
-struct TagDTO: Codable, Identifiable {
+struct TagDTO: Decodable, Identifiable {
     let id: String
     let name: String
     let color: String
     let deletedAt: Date?
+    let createdAt: Date
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, color, deletedAt, createdAt, updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        color = try c.decodeIfPresent(String.self, forKey: .color) ?? "#5E6AD2"
+        deletedAt = try c.decodeIfPresent(Date.self, forKey: .deletedAt)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+    }
 }
 
 struct TagPayload: Encodable {
