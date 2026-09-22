@@ -6,19 +6,25 @@ struct NotesListView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
 
-    @Query(
-        filter: #Predicate<NoteItem> { $0.deletedAt == nil && $0.archived == false },
-        sort: [SortDescriptor(\NoteItem.pinned, order: .reverse), SortDescriptor(\NoteItem.updatedAt, order: .reverse)]
-    )
+    // 注意：@Query 的 filter+多 SortDescriptor 组合会让类型检查器超时，排序放到计算属性中
+    @Query(filter: #Predicate<NoteItem> { $0.deletedAt == nil && $0.archived == false })
     private var notes: [NoteItem]
 
     @State private var searchText = ""
     @State private var showEditor = false
     @State private var editingNote: NoteItem?
 
+    /// 置顶优先，其次按更新时间倒序
+    private var sortedNotes: [NoteItem] {
+        notes.sorted {
+            if $0.pinned != $1.pinned { return $0.pinned && !$1.pinned }
+            return $0.updatedAt > $1.updatedAt
+        }
+    }
+
     private var filtered: [NoteItem] {
-        guard !searchText.isEmpty else { return notes }
-        return notes.filter {
+        guard !searchText.isEmpty else { return sortedNotes }
+        return sortedNotes.filter {
             $0.title.localizedCaseInsensitiveContains(searchText)
                 || $0.content.localizedCaseInsensitiveContains(searchText)
         }
