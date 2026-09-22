@@ -1,53 +1,64 @@
 /**
- * 冒烟测试：不依赖 Docker，使用嵌入式 PostgreSQL 16 完整验证后端 API。
- * 首次运行会从 Maven Central 下载 PostgreSQL 二进制（约几十 MB，需联网）。
- * 运行方式：npm run smoke（工作目录 server/）
+ * 冒烟测试（双模式）：
+ * - 自动模式（默认）：内置嵌入式 PostgreSQL（普通开发机；首次运行需联网下载二进制）
+ * - 外部模式：设置 SIXIANG_DB_URL=postgresql://... 时直连已运行的 PostgreSQL
+ *    （受限沙箱环境用：由外部 PowerShell 驱动 PG 二进制，避免 Node 子进程管道限制）
+ *
+ * 运行方式：npm run smoke（先 tsc 编译 src，再以纯 JS 执行，全程无子进程）
  */
-import { assert } from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import process from 'node:process';
+
+const externalUrl = process.env.SIXIANG_DB_URL;
 
 async function main() {
-  const dataDir = join(process.cwd(), '.pgdata-smoke');
-  rmSync(dataDir, { recursive: true, force: true });
-  mkdirSync(dataDir, { recursive: true });
-
-  const { default: EmbeddedPostgres } = await import('embedded-postgres');
-  const pg = new EmbeddedPostgres({
-    databaseDir: dataDir,
-    user: 'postgres',
-    password: 'postgres',
-    port: 5433,
-    persistent: false,
-  });
-
+  let pg = null;
   let started = false;
+  let dataDir = null;
+
   try {
-    console.log('⏳ 初始化嵌入式 PostgreSQL（首次运行需下载二进制，请耐心等待）...');
-    await pg.initialise();
-    await pg.start();
-    started = true;
-    await pg.createDatabase('sixiang');
-    console.log('✅ PostgreSQL 16 已启动 (localhost:5433)');
+    if (externalUrl) {
+      console.log('✅ 使用外部 PostgreSQL（SIXIANG_DB_URL）');
+      process.env.DATABASE_URL = externalUrl;
+    } else {
+      dataDir = join(process.cwd(), '.pgdata-smoke');
+      rmSync(dataDir, { recursive: true, force: true });
+      mkdirSync(dataDir, { recursive: true });
+      const { default: EmbeddedPostgres } = await import('embedded-postgres');
+      pg = new EmbeddedPostgres({
+        databaseDir: dataDir,
+        user: 'postgres',
+        password: 'postgres',
+        port: 5433,
+        persistent: false,
+      });
+      console.log('⏳ 初始化嵌入式 PostgreSQL（首次运行需下载二进制，请耐心等待）...');
+      await pg.initialise();
+      await pg.start();
+      started = true;
+      await pg.createDatabase('sixiang');
+      console.log('✅ PostgreSQL 已启动 (localhost:5433)');
+      process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/sixiang';
+    }
 
-    process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/sixiang';
-
-    const { prisma } = await import('../src/db.js');
+    const { prisma } = await import('../dist/db.js');
     const initSql = readFileSync(join(process.cwd(), 'prisma', 'init.sql'), 'utf8');
     for (const stmt of initSql.split(';').map((s) => s.trim()).filter(Boolean)) {
       await prisma.$executeRawUnsafe(stmt);
     }
     console.log('✅ 表结构已创建（prisma/init.sql）');
 
-    const { buildApp } = await import('../src/app.js');
+    const { buildApp } = await import('../dist/app.js');
     const app = await buildApp();
 
     let checks = 0;
-    const expectStatus = (res: { statusCode: number; body: string }, status: number) => {
+    const expectStatus = (res, status) => {
       checks++;
       assert.equal(res.statusCode, status, `期望 ${status}，实际 ${res.statusCode}，响应: ${res.body}`);
     };
-    const authHeaders = (token: string) => ({ authorization: `Bearer ${token}` });
+    const authHeaders = (token) => ({ authorization: `Bearer ${token}` });
 
     // 1. 注册
     let res = await app.inject({
@@ -58,7 +69,6 @@ async function main() {
     expectStatus(res, 200);
     const { accessToken, refreshToken, user } = res.json();
     assert.ok(accessToken && refreshToken && user.id);
-    const userId = user.id;
 
     // 2. 重复注册 → 409
     res = await app.inject({
@@ -99,29 +109,37 @@ async function main() {
     const H = authHeaders(accessToken);
     const t0 = new Date(Date.now() - 60_000).toISOString();
 
-    // 7. 创建标签
-    res = await app.inject({ method: 'POST', url: '/api/tags', headers: H, payload: { name: '工作', color: '#FF5500' } });
+    // 7. 创建标签（客户端指定 id）
+    const tagId = crypto.randomUUID();
+    res = await app.inject({
+      method: 'POST',
+      url: '/api/tags',
+      headers: H,
+      payload: { id: tagId, name: '工作', color: '#FF5500' },
+    });
     expectStatus(res, 200);
-    const tagId = res.json().id;
+    assert.equal(res.json().id, tagId, '服务端应保留客户端提供的 id');
 
-    // 8. 创建任务（含子任务与标签）
+    // 8. 创建任务（含子任务与标签，客户端指定 id）
+    const taskId = crypto.randomUUID();
     res = await app.inject({
       method: 'POST',
       url: '/api/tasks',
       headers: H,
       payload: {
+        id: taskId,
         title: '写设计文档',
         quadrant: 1,
         priority: 2,
         tagIds: [tagId],
         subtasks: [
-          { title: '画原型', done: false, sortOrder: 0 },
-          { title: '评审', done: false, sortOrder: 1 },
+          { id: crypto.randomUUID(), title: '画原型', done: false, sortOrder: 0 },
+          { id: crypto.randomUUID(), title: '评审', done: false, sortOrder: 1 },
         ],
       },
     });
     expectStatus(res, 200);
-    const taskId = res.json().id;
+    assert.equal(res.json().id, taskId);
 
     // 9. 查询任务（嵌套结构）
     res = await app.inject({ method: 'GET', url: '/api/tasks', headers: H });
@@ -177,10 +195,10 @@ async function main() {
     res = await app.inject({ method: 'GET', url: `/api/sync?since=${t0}&deviceId=smoke-device`, headers: H });
     expectStatus(res, 200);
     const sync = res.json();
-    assert.ok(sync.tasks.some((t: { id: string }) => t.id === taskId));
-    assert.ok(sync.events.some((e: { id: string }) => e.id === eventId));
-    assert.ok(sync.notes.some((n: { id: string }) => n.id === noteId));
-    assert.ok(sync.tags.some((t: { id: string }) => t.id === tagId));
+    assert.ok(sync.tasks.some((t) => t.id === taskId));
+    assert.ok(sync.events.some((e) => e.id === eventId));
+    assert.ok(sync.notes.some((n) => n.id === noteId));
+    assert.ok(sync.tags.some((t) => t.id === tagId));
     assert.ok(sync.serverTime);
 
     // 15. 统计概览
@@ -191,13 +209,19 @@ async function main() {
     assert.equal(stats.totals.completed, 1);
     assert.equal(stats.quadrantDistribution.q1, 1);
 
-    // 16. 软删除 → 墓碑同步
+    // 16. 软删除 → 墓碑同步（用删除前的时间点查询应返回带 deletedAt 的墓碑）
     res = await app.inject({ method: 'DELETE', url: `/api/tasks/${taskId}`, headers: H });
     expectStatus(res, 200);
+    res = await app.inject({ method: 'GET', url: `/api/tasks?since=${t0}`, headers: H });
+    expectStatus(res, 200);
+    const withTombstone = res.json().find((t) => t.id === taskId);
+    assert.ok(withTombstone, '增量同步应返回该任务的墓碑');
+    assert.ok(withTombstone.deletedAt, '墓碑应带 deletedAt');
+    // 删除完成之后的增量窗口不应再重复返回
     const afterDelete = new Date(Date.now() + 1_000).toISOString();
     res = await app.inject({ method: 'GET', url: `/api/tasks?since=${afterDelete}`, headers: H });
     expectStatus(res, 200);
-    assert.ok(res.json()[0].deletedAt);
+    assert.equal(res.json().length, 0, '删除后新窗口应为空');
 
     // 17. 硬删除
     res = await app.inject({ method: 'DELETE', url: `/api/tasks/${taskId}?hard=true`, headers: H });
@@ -229,10 +253,10 @@ async function main() {
 
     await app.close();
     await prisma.$disconnect();
-    console.log(`🎉 冒烟测试全部通过（${checks} 项断言，覆盖认证/CRUD/同步/统计/删除/隔离）`);
+    console.log(`🎉 冒烟测试全部通过（${checks} 项断言，覆盖认证/CRUD/同步/统计/删除/隔离/客户端ID）`);
   } finally {
-    if (started) await pg.stop().catch(() => {});
-    rmSync(dataDir, { recursive: true, force: true });
+    if (pg && started) await pg.stop().catch(() => {});
+    if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   }
 }
 

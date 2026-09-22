@@ -21,7 +21,7 @@ struct SubtaskValue: Codable, Hashable, Identifiable {
 
 @Model
 final class TaskItem {
-    @Attribute(.unique) var id: String
+    @Attribute(.unique) var serverId: String
     var title: String
     var note: String
     var quadrant: Int // 1 重要紧急 / 2 重要不紧急 / 3 紧急不重要 / 4 不紧急不重要
@@ -42,7 +42,7 @@ final class TaskItem {
     var isOnServer: Bool
 
     init(
-        id: String = UUID().uuidString,
+        serverId: String = UUID().uuidString,
         title: String,
         note: String = "",
         quadrant: Int = 1,
@@ -56,7 +56,7 @@ final class TaskItem {
         subtasks: [SubtaskValue] = [],
         isOnServer: Bool = false
     ) {
-        self.id = id
+        self.serverId = serverId
         self.title = title
         self.note = note
         self.quadrant = quadrant
@@ -83,7 +83,7 @@ final class TaskItem {
 
 @Model
 final class EventItem {
-    @Attribute(.unique) var id: String
+    @Attribute(.unique) var serverId: String
     var title: String
     var note: String
     var location: String
@@ -100,7 +100,7 @@ final class EventItem {
     var isOnServer: Bool
 
     init(
-        id: String = UUID().uuidString,
+        serverId: String = UUID().uuidString,
         title: String,
         note: String = "",
         location: String = "",
@@ -112,7 +112,7 @@ final class EventItem {
         calendarId: String? = nil,
         isOnServer: Bool = false
     ) {
-        self.id = id
+        self.serverId = serverId
         self.title = title
         self.note = note
         self.location = location
@@ -136,7 +136,7 @@ final class EventItem {
 
 @Model
 final class NoteItem {
-    @Attribute(.unique) var id: String
+    @Attribute(.unique) var serverId: String
     var title: String
     var content: String
     var pinned: Bool
@@ -149,7 +149,7 @@ final class NoteItem {
     var isOnServer: Bool
 
     init(
-        id: String = UUID().uuidString,
+        serverId: String = UUID().uuidString,
         title: String,
         content: String = "",
         pinned: Bool = false,
@@ -157,7 +157,7 @@ final class NoteItem {
         tagIds: [String] = [],
         isOnServer: Bool = false
     ) {
-        self.id = id
+        self.serverId = serverId
         self.title = title
         self.content = content
         self.pinned = pinned
@@ -177,7 +177,7 @@ final class NoteItem {
 
 @Model
 final class TagItem {
-    @Attribute(.unique) var id: String
+    @Attribute(.unique) var serverId: String
     var name: String
     var color: String
     var deletedAt: Date?
@@ -187,12 +187,12 @@ final class TagItem {
     var isOnServer: Bool
 
     init(
-        id: String = UUID().uuidString,
+        serverId: String = UUID().uuidString,
         name: String,
         color: String = "#5E6AD2",
         isOnServer: Bool = false
     ) {
-        self.id = id
+        self.serverId = serverId
         self.name = name
         self.color = color
         self.deletedAt = nil

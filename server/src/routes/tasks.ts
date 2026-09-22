@@ -34,7 +34,7 @@ const taskCreateSchema = z.object({
 
 const taskUpdateSchema = taskCreateSchema.partial();
 
-type TaskBody = z.infer<typeof taskCreateSchema>;
+type TaskUpdateBody = z.infer<typeof taskUpdateSchema>;
 
 const taskInclude = {
   subtasks: { orderBy: { sortOrder: 'asc' as const } },
@@ -49,7 +49,7 @@ function serializeTask(task: TaskWithLinks) {
 }
 
 /** 组装写入数据：字符串日期 → Date，undefined 跳过，null 置空 */
-function buildTaskData(body: TaskBody): Prisma.TaskUncheckedUpdateInput {
+function buildTaskData(body: TaskUpdateBody): Prisma.TaskUncheckedUpdateInput {
   const data: Prisma.TaskUncheckedUpdateInput = {};
   for (const key of ['title', 'note', 'quadrant', 'priority', 'sortOrder', 'repeatRule'] as const) {
     if (body[key] !== undefined) (data as Record<string, unknown>)[key] = body[key];
@@ -108,7 +108,7 @@ export async function taskRoutes(app: FastifyInstance) {
       const body = taskCreateSchema.parse(req.body);
       await prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
-          data: { ...buildTaskData(body), id: body.id, userId: req.user.sub },
+          data: { ...buildTaskData(body), id: body.id, userId: req.user.sub } as Prisma.TaskUncheckedCreateInput,
         });
         if (body.tagIds?.length) {
           await tx.taskTag.createMany({ data: body.tagIds.map((tagId) => ({ taskId: task.id, tagId })) });

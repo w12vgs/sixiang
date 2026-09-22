@@ -10,29 +10,35 @@ const sinceQuery = z.object({
   hard: z.enum(['true', 'false']).optional(),
 });
 
-const eventCreateSchema = z
-  .object({
-    id: z.string().uuid().optional(), // 客户端离线生成
-    title: z.string().min(1).max(500),
-    note: z.string().max(20000).nullable().optional(),
-    location: z.string().max(500).nullable().optional(),
-    startAt: z.string().datetime(),
-    endAt: z.string().datetime(),
-    allDay: z.boolean().default(false),
-    remindOffsetMinutes: z.number().int().min(0).max(10080).nullable().optional(),
-    repeatRule: z.string().max(500).nullable().optional(),
-    calendarId: z.string().max(200).nullable().optional(),
-  })
-  .refine((v) => (v.startAt && v.endAt ? new Date(v.endAt) >= new Date(v.startAt) : true), {
-    message: 'endAt must be >= startAt',
-    path: ['endAt'],
-  });
+const eventSchema = z.object({
+  id: z.string().uuid().optional(), // 客户端离线生成
+  title: z.string().min(1).max(500),
+  note: z.string().max(20000).nullable().optional(),
+  location: z.string().max(500).nullable().optional(),
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  allDay: z.boolean().default(false),
+  remindOffsetMinutes: z.number().int().min(0).max(10080).nullable().optional(),
+  repeatRule: z.string().max(500).nullable().optional(),
+  calendarId: z.string().max(200).nullable().optional(),
+});
 
-const eventUpdateSchema = eventCreateSchema.partial();
+const endAtValid = (v: { startAt?: string; endAt?: string }) =>
+  v.startAt && v.endAt ? new Date(v.endAt) >= new Date(v.startAt) : true;
 
-type EventBody = z.infer<typeof eventCreateSchema>;
+const eventCreateSchema = eventSchema.refine(endAtValid, {
+  message: 'endAt must be >= startAt',
+  path: ['endAt'],
+});
 
-function buildEventData(body: EventBody): Prisma.EventUncheckedUpdateInput {
+const eventUpdateSchema = eventSchema.partial().refine(endAtValid, {
+  message: 'endAt must be >= startAt',
+  path: ['endAt'],
+});
+
+type EventUpdateBody = z.infer<typeof eventUpdateSchema>;
+
+function buildEventData(body: EventUpdateBody): Prisma.EventUncheckedUpdateInput {
   const data: Prisma.EventUncheckedUpdateInput = {};
   for (const key of ['title', 'note', 'location', 'allDay', 'remindOffsetMinutes', 'repeatRule', 'calendarId'] as const) {
     if (body[key] !== undefined) (data as Record<string, unknown>)[key] = body[key];
@@ -77,7 +83,7 @@ export async function eventRoutes(app: FastifyInstance) {
     try {
       const body = eventCreateSchema.parse(req.body);
       return await prisma.event.create({
-        data: { ...buildEventData(body), id: body.id, userId: req.user.sub },
+        data: { ...buildEventData(body), id: body.id, userId: req.user.sub } as Prisma.EventUncheckedCreateInput,
       });
     } catch (err) {
       return handleError(err, reply);

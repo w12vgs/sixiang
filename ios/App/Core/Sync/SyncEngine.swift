@@ -104,11 +104,11 @@ final class SyncEngine {
             let payload = TaskPayload(from: task)
             if task.isOnServer {
                 if task.deletedAt != nil {
-                    try await APIClient.shared.sendVoid("/api/tasks/\(task.id)", options: .init(method: "DELETE", auth: true))
+                    try await APIClient.shared.sendVoid("/api/tasks/\(task.serverId)", options: .init(method: "DELETE", auth: true))
                     task.needsSync = false
                 } else {
                     let dto: TaskDTO = try await APIClient.shared.send(
-                        "/api/tasks/\(task.id)",
+                        "/api/tasks/\(task.serverId)",
                         options: try .json(method: "PUT", body: payload, auth: true)
                     )
                     applyServer(dto, to: task)
@@ -132,11 +132,11 @@ final class SyncEngine {
             let payload = EventPayload(from: event)
             if event.isOnServer {
                 if event.deletedAt != nil {
-                    try await APIClient.shared.sendVoid("/api/events/\(event.id)", options: .init(method: "DELETE", auth: true))
+                    try await APIClient.shared.sendVoid("/api/events/\(event.serverId)", options: .init(method: "DELETE", auth: true))
                     event.needsSync = false
                 } else {
                     let dto: EventDTO = try await APIClient.shared.send(
-                        "/api/events/\(event.id)",
+                        "/api/events/\(event.serverId)",
                         options: try .json(method: "PUT", body: payload, auth: true)
                     )
                     applyServer(dto, to: event)
@@ -159,11 +159,11 @@ final class SyncEngine {
             let payload = NotePayload(from: note)
             if note.isOnServer {
                 if note.deletedAt != nil {
-                    try await APIClient.shared.sendVoid("/api/notes/\(note.id)", options: .init(method: "DELETE", auth: true))
+                    try await APIClient.shared.sendVoid("/api/notes/\(note.serverId)", options: .init(method: "DELETE", auth: true))
                     note.needsSync = false
                 } else {
                     let dto: NoteDTO = try await APIClient.shared.send(
-                        "/api/notes/\(note.id)",
+                        "/api/notes/\(note.serverId)",
                         options: try .json(method: "PUT", body: payload, auth: true)
                     )
                     applyServer(dto, to: note)
@@ -183,14 +183,14 @@ final class SyncEngine {
     private func pushTags() async throws {
         let dirty = (try? context.fetch(FetchDescriptor<TagItem>(predicate: #Predicate { $0.needsSync }))) ?? []
         for tag in dirty {
-            let payload = TagPayload(id: tag.id, name: tag.name, color: tag.color)
+            let payload = TagPayload(id: tag.serverId, name: tag.name, color: tag.color)
             if tag.isOnServer {
                 if tag.deletedAt != nil {
-                    try await APIClient.shared.sendVoid("/api/tags/\(tag.id)", options: .init(method: "DELETE", auth: true))
+                    try await APIClient.shared.sendVoid("/api/tags/\(tag.serverId)", options: .init(method: "DELETE", auth: true))
                     tag.needsSync = false
                 } else {
                     let dto: TagDTO = try await APIClient.shared.send(
-                        "/api/tags/\(tag.id)",
+                        "/api/tags/\(tag.serverId)",
                         options: try .json(method: "PUT", body: payload, auth: true)
                     )
                     applyServer(dto, to: tag)
@@ -210,25 +210,25 @@ final class SyncEngine {
     // MARK: - 合并
 
     private func task(id: String) -> TaskItem? {
-        var d = FetchDescriptor<TaskItem>(predicate: #Predicate { $0.id == id })
+        var d = FetchDescriptor<TaskItem>(predicate: #Predicate { $0.serverId == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
     }
 
     private func event(id: String) -> EventItem? {
-        var d = FetchDescriptor<EventItem>(predicate: #Predicate { $0.id == id })
+        var d = FetchDescriptor<EventItem>(predicate: #Predicate { $0.serverId == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
     }
 
     private func note(id: String) -> NoteItem? {
-        var d = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.id == id })
+        var d = FetchDescriptor<NoteItem>(predicate: #Predicate { $0.serverId == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
     }
 
     private func tag(id: String) -> TagItem? {
-        var d = FetchDescriptor<TagItem>(predicate: #Predicate { $0.id == id })
+        var d = FetchDescriptor<TagItem>(predicate: #Predicate { $0.serverId == id })
         d.fetchLimit = 1
         return (try? context.fetch(d))?.first
     }
@@ -239,7 +239,7 @@ final class SyncEngine {
                 overwrite(local, with: dto)
             }
         } else {
-            let item = TaskItem(id: dto.id, title: dto.title, isOnServer: true)
+            let item = TaskItem(serverId: dto.id, title: dto.title, isOnServer: true)
             overwrite(item, with: dto)
             context.insert(item)
         }
@@ -251,7 +251,7 @@ final class SyncEngine {
                 overwrite(local, with: dto)
             }
         } else {
-            let item = EventItem(id: dto.id, title: dto.title, startAt: dto.startAt, endAt: dto.endAt, isOnServer: true)
+            let item = EventItem(serverId: dto.id, title: dto.title, startAt: dto.startAt, endAt: dto.endAt, isOnServer: true)
             overwrite(item, with: dto)
             context.insert(item)
         }
@@ -263,7 +263,7 @@ final class SyncEngine {
                 overwrite(local, with: dto)
             }
         } else {
-            let item = NoteItem(id: dto.id, title: dto.title, isOnServer: true)
+            let item = NoteItem(serverId: dto.id, title: dto.title, isOnServer: true)
             overwrite(item, with: dto)
             context.insert(item)
         }
@@ -275,7 +275,7 @@ final class SyncEngine {
                 overwrite(local, with: dto)
             }
         } else {
-            let item = TagItem(id: dto.id, name: dto.name, isOnServer: true)
+            let item = TagItem(serverId: dto.id, name: dto.name, isOnServer: true)
             overwrite(item, with: dto)
             context.insert(item)
         }

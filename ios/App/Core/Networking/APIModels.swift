@@ -127,7 +127,7 @@ struct TaskPayload: Encodable {
     let subtasks: [SubtaskPayload]
 
     init(from task: TaskItem) {
-        id = task.id
+        id = task.serverId
         title = task.title
         note = task.note
         quadrant = task.quadrant
@@ -226,7 +226,7 @@ struct EventPayload: Encodable {
     let calendarId: String?
 
     init(from event: EventItem) {
-        id = event.id
+        id = event.serverId
         title = event.title
         note = event.note
         location = event.location
@@ -298,7 +298,7 @@ struct NotePayload: Encodable {
     let tagIds: [String]
 
     init(from note: NoteItem) {
-        id = note.id
+        id = note.serverId
         title = note.title
         content = note.content
         pinned = note.pinned
