@@ -11,6 +11,7 @@ const sinceQuery = z.object({
 });
 
 const noteCreateSchema = z.object({
+  id: z.string().uuid().optional(), // 客户端离线生成
   title: z.string().min(1).max(500),
   content: z.string().max(200000).default(''),
   pinned: z.boolean().default(false),
@@ -70,6 +71,7 @@ export async function noteRoutes(app: FastifyInstance) {
       const note = await prisma.$transaction(async (tx) => {
         const n = await tx.note.create({
           data: {
+            id: body.id,
             title: body.title,
             content: body.content,
             pinned: body.pinned,

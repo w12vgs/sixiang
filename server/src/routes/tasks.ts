@@ -11,13 +11,14 @@ const sinceQuery = z.object({
 });
 
 const subtaskSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().uuid(),
   title: z.string().min(1).max(1000),
   done: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
 });
 
 const taskCreateSchema = z.object({
+  id: z.string().uuid().optional(), // 客户端离线生成，保持离线-在线 ID 一致
   title: z.string().min(1).max(500),
   note: z.string().max(20000).nullable().optional(),
   quadrant: z.number().int().min(1).max(4).default(1),
@@ -107,23 +108,21 @@ export async function taskRoutes(app: FastifyInstance) {
       const body = taskCreateSchema.parse(req.body);
       await prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
-          data: { ...buildTaskData(body), userId: req.user.sub },
+          data: { ...buildTaskData(body), id: body.id, userId: req.user.sub },
         });
         if (body.tagIds?.length) {
           await tx.taskTag.createMany({ data: body.tagIds.map((tagId) => ({ taskId: task.id, tagId })) });
         }
         if (body.subtasks?.length) {
           await tx.subtask.createMany({
-            data: body.subtasks.map((s) => ({ title: s.title, done: s.done, sortOrder: s.sortOrder, taskId: task.id })),
+            data: body.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.done, sortOrder: s.sortOrder, taskId: task.id })),
           });
         }
         return task;
       });
-      // 重新查询以返回完整结构
       const created = await prisma.task.findFirst({
-        where: { userId: req.user.sub },
+        where: { userId: req.user.sub, id: body.id },
         include: taskInclude,
-        orderBy: { createdAt: 'desc' },
       });
       if (!created) throw new HttpError(500, 'internal_error');
       return serializeTask(created);
@@ -152,7 +151,7 @@ export async function taskRoutes(app: FastifyInstance) {
           await tx.subtask.deleteMany({ where: { taskId: id } });
           if (body.subtasks.length) {
             await tx.subtask.createMany({
-              data: body.subtasks.map((s) => ({ title: s.title, done: s.done, sortOrder: s.sortOrder, taskId: id })),
+              data: body.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.done, sortOrder: s.sortOrder, taskId: id })),
             });
           }
           await tx.task.update({ where: { id }, data: { updatedAt: new Date() } });

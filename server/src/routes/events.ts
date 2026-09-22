@@ -12,6 +12,7 @@ const sinceQuery = z.object({
 
 const eventCreateSchema = z
   .object({
+    id: z.string().uuid().optional(), // 客户端离线生成
     title: z.string().min(1).max(500),
     note: z.string().max(20000).nullable().optional(),
     location: z.string().max(500).nullable().optional(),
@@ -76,7 +77,7 @@ export async function eventRoutes(app: FastifyInstance) {
     try {
       const body = eventCreateSchema.parse(req.body);
       return await prisma.event.create({
-        data: { ...buildEventData(body), userId: req.user.sub },
+        data: { ...buildEventData(body), id: body.id, userId: req.user.sub },
       });
     } catch (err) {
       return handleError(err, reply);

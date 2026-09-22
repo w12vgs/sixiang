@@ -8,6 +8,7 @@ import { requireAuth } from '../auth.js';
 const sinceQuery = z.object({ since: z.string().datetime().optional() });
 
 const tagCreateSchema = z.object({
+  id: z.string().uuid().optional(), // 客户端离线生成
   name: z.string().min(1).max(50),
   color: z
     .string()
@@ -34,7 +35,7 @@ export async function tagRoutes(app: FastifyInstance) {
   app.post('/api/tags', { preHandler: requireAuth }, async (req, reply) => {
     try {
       const body = tagCreateSchema.parse(req.body);
-      return await prisma.tag.create({ data: { ...body, userId: req.user.sub } });
+      return await prisma.tag.create({ data: { ...body, id: body.id, userId: req.user.sub } });
     } catch (err) {
       return handleError(err, reply);
     }
