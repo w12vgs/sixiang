@@ -19,6 +19,15 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Select newest available Xcode
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$LATEST_XCODE" ]; then
+            echo "Selecting $LATEST_XCODE"
+            sudo xcode-select -s "$LATEST_XCODE"
+          fi
+          xcodebuild -version
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
