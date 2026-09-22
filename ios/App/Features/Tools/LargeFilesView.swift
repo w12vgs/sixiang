@@ -103,9 +103,10 @@ struct LargeFilesView: View {
         running = true
         defer { running = false }
 
-        FolderBookmark.withAccess(to: folderURL) { _ = () }
-
-        let all = await scanner.scan(url: folderURL)
+        // 安全作用域必须覆盖整个扫描过程
+        let all = await FolderBookmark.withAccess(to: folderURL) {
+            await scanner.scan(url: folderURL)
+        }
         files = all.sorted { $0.size > $1.size }
     }
 

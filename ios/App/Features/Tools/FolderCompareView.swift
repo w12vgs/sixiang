@@ -195,14 +195,13 @@ struct FolderCompareView: View {
         sameCount = 0
         defer { running = false }
 
-        FolderBookmark.withAccess(to: leftURL) {
-            FolderBookmark.withAccess(to: rightURL) {
-                _ = ()
-            }
+        // 安全作用域必须覆盖整个扫描+哈希过程
+        let leftFiles = await FolderBookmark.withAccess(to: leftURL) {
+            await scanner.scan(url: leftURL)
         }
-
-        let leftFiles = await scanner.scan(url: leftURL)
-        let rightFiles = await scanner.scan(url: rightURL)
+        let rightFiles = await FolderBookmark.withAccess(to: rightURL) {
+            await scanner.scan(url: rightURL)
+        }
 
         var leftMap = [String: FileInfo]()
         for f in leftFiles { leftMap[f.relativePath] = f }
@@ -234,8 +233,16 @@ struct FolderCompareView: View {
         }
 
         if mode == .deep, !toHash.isEmpty {
-            let leftHashes = await scanner.hashAll(root: leftURL, files: toHash)
-            let rightHashes = await scanner.hashAll(root: rightURL, files: toHash)
+            // 哈希阶段同样保持在两个文件夹的安全作用域内
+            let hashes = await FolderBookmark.withAccess(to: leftURL) {
+                await FolderBookmark.withAccess(to: rightURL) {
+                    async let lh = scanner.hashAll(root: leftURL, files: toHash)
+                    async let rh = scanner.hashAll(root: rightURL, files: toHash)
+                    return await (lh, rh)
+                }
+            }
+            let leftHashes = hashes.0
+            let rightHashes = hashes.1
             for info in toHash {
                 let lh = leftHashes[info.relativePath]
                 let rh = rightHashes[info.relativePath]

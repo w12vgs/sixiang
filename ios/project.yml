@@ -27,6 +27,7 @@ targets:
     dependencies:
       - target: SixiangWidget
         embed: true
+        codeSign: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.sixiang.workbench

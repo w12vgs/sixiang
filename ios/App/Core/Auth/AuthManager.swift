@@ -6,6 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class AuthManager {
+    /// iOS 17 SDK 中 SwiftUI 的 App 协议为 @MainActor，入口处创建单例是安全的；
+    /// 若未来升级 Swift 6 严格并发，需为 SixiangApp 显式标注 @MainActor
     static let shared = AuthManager()
 
     private(set) var isLoggedIn = false

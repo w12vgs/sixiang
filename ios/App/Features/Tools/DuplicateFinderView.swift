@@ -108,9 +108,10 @@ struct DuplicateFinderView: View {
         groups = []
         defer { running = false }
 
-        FolderBookmark.withAccess(to: folderURL) { _ = () }
-
-        let files = await scanner.scan(url: folderURL)
+        // 安全作用域必须覆盖整个扫描+哈希过程
+        let files = await FolderBookmark.withAccess(to: folderURL) {
+            await scanner.scan(url: folderURL)
+        }
 
         // 按大小分组（大小相同才可能是重复）
         var bySize = [Int64: [FileInfo]]()
@@ -121,7 +122,9 @@ struct DuplicateFinderView: View {
         var result: [DupGroup] = []
         let candidates = bySize.values.filter { $0.count > 1 }.flatMap { $0 }
         scanner.statusText = "哈希确认 \(candidates.count) 个候选文件…"
-        let hashes = await scanner.hashAll(root: folderURL, files: candidates)
+        let hashes = await FolderBookmark.withAccess(to: folderURL) {
+            await scanner.hashAll(root: folderURL, files: candidates)
+        }
 
         var byHash = [String: [FileInfo]]()
         for f in candidates {
