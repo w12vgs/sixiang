@@ -26,6 +26,17 @@ enum Theme {
         }
     }
 
+    /// 图例用的短标题
+    static func quadrantShortTitle(_ quadrant: Int) -> String {
+        switch quadrant {
+        case 1: return "重要紧急"
+        case 2: return "重要不紧急"
+        case 3: return "紧急不重要"
+        case 4: return "不紧急不重要"
+        default: return "未分类"
+        }
+    }
+
     static func priorityTitle(_ priority: Int) -> String {
         switch priority {
         case 1: return "高"
