@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Observation
+import WidgetKit
 
 /// 离线优先同步引擎：
 /// - 所有修改先写本地 SwiftData，后台防抖推送
@@ -28,12 +29,13 @@ final class SyncEngine {
     private(set) var state: SyncState = .idle
     private(set) var lastSyncedAt: Date?
 
-    private let context: ModelContext
+    private let container: ModelContainer
+    private var context: ModelContext { container.mainContext }
     private var inFlight = false
     private var debounceTask: Task<Void, Never>?
 
-    init(context: ModelContext) {
-        self.context = context
+    nonisolated init(container: ModelContainer) {
+        self.container = container
         self.lastSyncedAt = UserDefaults.standard.object(forKey: "lastSyncAt") as? Date
     }
 
@@ -62,6 +64,7 @@ final class SyncEngine {
             UserDefaults.standard.set(lastSyncedAt, forKey: "lastSyncAt")
             state = .idle
             NotificationScheduler.rescheduleAll(context: context)
+            WidgetCenter.shared.reloadAllTimelines()
         } catch let err as APIError {
             state = err.isOffline ? .offline : .failed(err.errorDescription ?? "同步失败")
         } catch {

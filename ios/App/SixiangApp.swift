@@ -19,7 +19,7 @@ struct SixiangApp: App {
             }
         }
         self.container = container
-        _syncEngine = State(initialValue: SyncEngine(context: container.mainContext))
+        _syncEngine = State(initialValue: SyncEngine(container: container))
     }
 
     var body: some Scene {

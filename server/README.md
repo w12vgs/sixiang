@@ -31,7 +31,10 @@ npm install
 npm run smoke
 ```
 
-冒烟测试会自动下载并启动嵌入式 PostgreSQL 16，执行 20 组断言（认证、CRUD、同步、统计、软删除墓碑、跨用户隔离），全程无需外部依赖。
+冒烟测试会自动下载并启动嵌入式 PostgreSQL 16+，执行 24 组断言（认证、CRUD、客户端 ID、同步、统计、软删除墓碑、跨用户隔离），全程无需外部依赖。
+
+> 受限沙箱环境（进程无法拉起子进程时）：`npm run build` 后执行
+> `& .\scripts\run-smoke-local.ps1`（Windows，用 @embedded-postgres 自带二进制 + 外部启动方式跑同一套断言）。
 
 ## 脚本
 

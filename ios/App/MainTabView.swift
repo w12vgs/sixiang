@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(SyncEngine.self) private var sync
+    @State private var showQuickAdd = false
 
     var body: some View {
         TabView {
@@ -19,6 +20,15 @@ struct MainTabView: View {
         .task {
             _ = await NotificationScheduler.ensureAuthorization()
             await sync.sync()
+        }
+        .onOpenURL { url in
+            // Widget「快速添加」直达：sixiang://add
+            if url.scheme == "sixiang", url.host == "add" {
+                showQuickAdd = true
+            }
+        }
+        .sheet(isPresented: $showQuickAdd) {
+            TaskEditorView()
         }
     }
 }
