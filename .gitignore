@@ -1,0 +1,30 @@
+node_modules/
+.npm-cache/
+dist/
+.env
+.pgdata*/
+*.log
+.DS_Store
+Thumbs.db
+
+# iOS
+ios/build/
+ios/**/xcuserdata/
+ios/**/*.xcodeproj
+DerivedData/
+
+# 工作区原有无关文件（不属于本项目仓库）
+Amee*.md
+MY*.md
+BLD*.md
+GEHR*.xlsx
+backup_*.reg
+致Amee*.md
+菲律宾*.md
+邮件*.md
+马来西亚*.md
+dsh-nas/
+modlens-pkg/
+pip-tmp/
+pylibs/
+work/

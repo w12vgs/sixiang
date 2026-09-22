@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String?  @map("display_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tasks       Task[]
+  events      Event[]
+  notes       Note[]
+  tags        Tag[]
+  attachments Attachment[]
+  deviceSyncs DeviceSync[]
+
+  @@map("users")
+}
+
+model Task {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  title       String
+  note        String?
+  quadrant    Int       @default(1) // 1=重要紧急 2=重要不紧急 3=紧急不重要 4=不紧急不重要
+  priority    Int       @default(2) // 1=高 2=中 3=低
+  dueAt       DateTime? @map("due_at")
+  reminderAt  DateTime? @map("reminder_at")
+  repeatRule  String?   @map("repeat_rule") // JSON 字符串，如 {"freq":"weekly","interval":1}
+  sortOrder   Int       @default(0) @map("sort_order")
+  completedAt DateTime? @map("completed_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks Subtask[]
+  tagLinks TaskTag[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, deletedAt])
+  @@map("tasks")
+}
+
+model Subtask {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  title     String
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("subtasks")
+}
+
+model Event {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  title               String
+  note                String?
+  location            String?
+  startAt             DateTime  @map("start_at")
+  endAt               DateTime  @map("end_at")
+  allDay              Boolean   @default(false) @map("all_day")
+  remindOffsetMinutes Int?      @map("remind_offset_minutes") // 提前 N 分钟提醒；null=不提醒
+  repeatRule          String?   @map("repeat_rule")
+  calendarId          String?   @map("calendar_id") // EventKit 系统日历联动 id
+  deletedAt           DateTime? @map("deleted_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@index([userId, deletedAt])
+  @@map("events")
+}
+
+model Note {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String
+  content   String    @default("") // Markdown
+  pinned    Boolean   @default(false)
+  archived  Boolean   @default(false)
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tagLinks NoteTag[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, deletedAt])
+  @@map("notes")
+}
+
+model Tag {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  name      String
+  color     String    @default("#5E6AD2")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskLinks TaskTag[]
+  noteLinks NoteTag[]
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
+  @@map("tags")
+}
+
+model TaskTag {
+  taskId String @map("task_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+  @@map("task_tags")
+}
+
+model NoteTag {
+  noteId String @map("note_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@map("note_tags")
+}
+
+model Attachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  fileName  String   @map("file_name")
+  filePath  String   @map("file_path")
+  mimeType  String?  @map("mime_type")
+  sizeBytes Int      @map("size_bytes")
+  noteId    String?  @map("note_id") @db.Uuid
+  taskId    String?  @map("task_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("attachments")
+}
+
+model DeviceSync {
+  userId       String   @map("user_id") @db.Uuid
+  deviceId     String   @map("device_id")
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, deviceId])
+  @@map("device_sync")
+}
