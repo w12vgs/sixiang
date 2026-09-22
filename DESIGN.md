@@ -2,6 +2,8 @@
 
 > 面向个人的一站式效率工作台 · iOS 原生（SwiftUI）· 自建后端 + 账号体系
 
+**实施状态：已确认并按本设计全部落地（M1–M9 完成）。** 产品名「四象」（Sixiang）。详见仓库 README.md / server/README.md / ios/README.md；iOS 构建验证走 GitHub Actions（`.github/workflows/ios-build.yml`）。
+
 ---
 
 ## 1. 产品概览
@@ -153,9 +155,11 @@ GET  /api/stats/overview?range=week|month|year
 3. **自建后端上线**：需服务器 + 域名 + HTTPS（开发阶段本机 localhost 即可）。
 4. **大目录哈希对比耗时**：置于后台任务、分批计算、可取消、显示进度。
 
-## 9. 待确认事项
+## 9. 实施完成清单（2026-09-22 更新）
 
-1. App 名称
-2. 后端技术栈（推荐 Node.js + TS + PostgreSQL）
-3. iOS 构建方式（有 Mac？还是 CI？）
-4. 最低支持 iOS 版本（建议 17，需 SwiftData）
+1. ~~App 名称~~ → **「四象」**
+2. ~~后端技术栈~~ → Node.js + TypeScript + Fastify + Prisma + PostgreSQL ✓
+3. ~~iOS 构建方式~~ → 无 Mac，GitHub Actions CI 构建 ✓
+4. ~~最低支持 iOS 版本~~ → iOS 17（SwiftData）✓
+
+M1 后端（冒烟测试 24 项断言全通过）→ M2 工程骨架 → M3 四象限 → M4 日历 → M5 笔记 → M6 看板 → M7 Widget → M8 文件工具 → M9 CI + 文档，均已交付。

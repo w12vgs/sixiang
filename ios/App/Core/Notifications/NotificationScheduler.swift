@@ -27,7 +27,7 @@ enum NotificationScheduler {
         if let tasks = try? context.fetch(FetchDescriptor<TaskItem>()) {
             for task in tasks where task.deletedAt == nil && task.completedAt == nil {
                 guard let remind = task.reminderAt, remind > Date(), remind < horizon else { continue }
-                add(identifier: "task-\(task.id)", title: task.title, body: "任务提醒", date: remind)
+                add(identifier: "task-\(task.serverId)", title: task.title, body: "任务提醒", date: remind)
             }
         }
 
@@ -38,7 +38,7 @@ enum NotificationScheduler {
                 let remindAt = event.startAt.addingTimeInterval(offset)
                 guard remindAt > Date() else { continue }
                 add(
-                    identifier: "event-\(event.id)",
+                    identifier: "event-\(event.serverId)",
                     title: event.title,
                     body: event.location.isEmpty ? "日程提醒" : "📍 \(event.location)",
                     date: remindAt
