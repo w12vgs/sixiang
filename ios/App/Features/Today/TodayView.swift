@@ -98,11 +98,12 @@ struct TodayView: View {
     }
 }
 
-/// 任务行：勾选完成 + 左滑删除（M3 将接入详情编辑）
+/// 任务行：勾选完成 + 点击编辑 + 左滑删除
 struct TaskRow: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncEngine.self) private var sync
     @Bindable var task: TaskItem
+    @State private var showEditor = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -131,6 +132,8 @@ struct TaskRow: View {
                 .font(.caption)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { showEditor = true }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 delete()
@@ -138,6 +141,7 @@ struct TaskRow: View {
                 Label("删除", systemImage: "trash")
             }
         }
+        .sheet(isPresented: $showEditor) { TaskEditorView(task: task) }
     }
 
     private func toggle() {

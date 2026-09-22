@@ -32,6 +32,11 @@ struct ProfileView: View {
                 } label: {
                     Label("服务器地址", systemImage: "server.rack")
                 }
+                NavigationLink {
+                    TagManageView()
+                } label: {
+                    Label("标签管理", systemImage: "tag")
+                }
             }
 
             Section("同步") {
