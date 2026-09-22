@@ -47,6 +47,28 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
 
+      - name: Package device IPA (unsigned, for sideload tools / later signing)
+        working-directory: ios
+        run: |
+          xcodebuild archive \
+            -project Sixiang.xcodeproj \
+            -scheme Sixiang \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -archivePath build/Sixiang.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+          mkdir -p Payload
+          cp -R build/Sixiang.xcarchive/Products/Applications/Sixiang.app Payload/
+          zip -r -q Sixiang-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sixiang-IPA
+          path: ios/Sixiang-unsigned.ipa
+          if-no-files-found: error
+
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

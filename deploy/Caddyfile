@@ -1,0 +1,5 @@
+# 域名从环境变量 API_DOMAIN 注入（Caddy 支持环境变量占位）
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:3000
+}

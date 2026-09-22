@@ -1,0 +1,74 @@
+name: iOS Signed Build (Ad Hoc)
+
+# 付费开发者账号就绪后使用：手动触发，产出可直接安装的签名 IPA。
+# 需要在仓库 Settings → Secrets and variables → Actions 配置以下 secrets：
+#   PROVISION_PROFILE_BASE64 : Ad Hoc 描述文件（.mobileprovision 的 base64，需同时覆盖 App 与 Widget 两个 bundle id 或使用通配）
+#   P12_BASE64               : 分发证书（.p12 的 base64，含私钥）
+#   P12_PASSWORD             : p12 密码
+#   APPLE_TEAM_ID            : 10 位 Team ID
+#   CODE_SIGN_IDENTITY       : 证书名称（如 "iPhone Distribution: Your Name (XXXXXXXXXX)"）
+# 另需把 ios/ci/ExportOptions-adhoc.plist 中的描述文件名改成你实际创建的名字。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-sign:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest available Xcode
+        run: |
+          LATEST_XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$LATEST_XCODE" ]; then
+            echo "Selecting $LATEST_XCODE"
+            sudo xcode-select -s "$LATEST_XCODE"
+          fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Install signing assets
+        env:
+          PROVISION_PROFILE_BASE64: ${{ secrets.PROVISION_PROFILE_BASE64 }}
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISION_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/sixiang.mobileprovision
+          echo "$P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p tmp build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p tmp build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "${{ secrets.P12_PASSWORD }}" -A
+          security set-key-partition-list -S apple-tool:,apple: -s -k tmp build.keychain
+
+      - name: Archive & export Ad Hoc IPA
+        working-directory: ios
+        env:
+          SIGNING_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild archive \
+            -project Sixiang.xcodeproj \
+            -scheme Sixiang \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Sixiang.xcarchive \
+            DEVELOPMENT_TEAM="$SIGNING_TEAM_ID" \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+            -allowProvisioningUpdates
+          xcodebuild -exportArchive \
+            -archivePath build/Sixiang.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ci/ExportOptions-adhoc.plist
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sixiang-AdHoc-IPA
+          path: ios/build/export/*.ipa
+          if-no-files-found: error
