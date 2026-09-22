@@ -9,7 +9,8 @@ struct FileInfo {
 }
 
 /// 文件夹扫描器：递归枚举 + SHA-256 哈希（后台任务、可取消）
-@MainActor
+/// 不加 @MainActor：实例由视图以 @State 创建；所有属性变更都发生在主线程调用方，
+/// 枚举/哈希在 detached 任务内完成，无需类级隔离。
 @Observable
 final class FolderScanner {
     var isWorking = false

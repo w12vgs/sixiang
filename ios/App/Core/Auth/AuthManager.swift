@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 /// 登录状态与令牌管理（Keychain 持久化，重启后自动恢复）
+/// iOS 17 SDK 中 SwiftUI 的 App 协议为 @MainActor，入口处创建单例是安全的
 @MainActor
 @Observable
 final class AuthManager {
