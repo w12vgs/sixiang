@@ -33,13 +33,14 @@ struct ToggleTaskIntent: AppIntent {
 }
 
 /// 快速添加：打开 App 并直达新建任务
+/// 通过 App Group UserDefaults 传递信号（OpenURLIntent 在扩展中需 iOS 18，此方案兼容 iOS 17）
 struct OpenAddTaskIntent: AppIntent {
     static var title: LocalizedStringResource = "快速添加任务"
     static var description = IntentDescription("打开四象并新建任务")
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        guard let url = URL(string: "sixiang://add") else { return .result() }
-        return .result(opensIntent: OpenURLIntent(url))
+        UserDefaults(suiteName: StoreConfig.appGroupID)?.set(true, forKey: "pendingQuickAdd")
+        return .result()
     }
 }

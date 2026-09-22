@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(SyncEngine.self) private var sync
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showQuickAdd = false
 
     var body: some View {
@@ -19,16 +20,31 @@ struct MainTabView: View {
         }
         .task {
             _ = await NotificationScheduler.ensureAuthorization()
+            checkQuickAddRequest()
             await sync.sync()
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                checkQuickAddRequest()
+            }
+        }
         .onOpenURL { url in
-            // Widget「快速添加」直达：sixiang://add
+            // 备用直达通道：sixiang://add
             if url.scheme == "sixiang", url.host == "add" {
                 showQuickAdd = true
             }
         }
         .sheet(isPresented: $showQuickAdd) {
             TaskEditorView()
+        }
+    }
+
+    /// Widget「快速添加」信号（App Group UserDefaults，iOS 17 兼容）
+    private func checkQuickAddRequest() {
+        let defaults = UserDefaults(suiteName: StoreConfig.appGroupID)
+        if defaults?.bool(forKey: "pendingQuickAdd") == true {
+            defaults?.set(false, forKey: "pendingQuickAdd")
+            showQuickAdd = true
         }
     }
 }
